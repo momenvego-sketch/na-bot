@@ -1,35 +1,3 @@
-
-Raw file content
-View options
-Skip to content
-momenvego-sketch
-na-bot
-Repository navigation
-Code
-Issues
-Pull requests
-Actions
-Projects
-Wiki
-Security and quality
-Insights
-Settings
-na-bot
-/worker.js
-Go to file
-t
-T
-momenvego-sketch
-momenvego-sketch
-Update worker.js
-0595e77
- · 
-2 minutes ago
-
-Code
-
-Blame
-426 lines (320 loc) · 12 KB
 const TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 
@@ -63,13 +31,17 @@ async function sendMessage(chatId, text, keyboard = null) {
     };
   }
 
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
   });
+
+  if (!response.ok) {
+    console.error("Telegram sendMessage error:", await response.text());
+  }
 }
 
 // ===============================
@@ -79,26 +51,56 @@ async function sendMessage(chatId, text, keyboard = null) {
 function mainMenu() {
   return [
     [
-      { text: "🧩 هل أنا مدمن؟", callback_data: "am_i_addict" },
-      { text: "💙 ما هي NA؟", callback_data: "what_is_na" }
+      {
+        text: "🧩 هل أنا مدمن؟",
+        callback_data: "am_i_addict"
+      },
+      {
+        text: "💙 ما هي NA؟",
+        callback_data: "what_is_na"
+      }
     ],
     [
-      { text: "🙏 لماذا نحن هنا؟", callback_data: "why_here" },
-      { text: "📖 كيف يعمل البرنامج؟", callback_data: "program" }
+      {
+        text: "🙏 لماذا نحن هنا؟",
+        callback_data: "why_here"
+      },
+      {
+        text: "📖 كيف يعمل البرنامج؟",
+        callback_data: "program"
+      }
     ],
     [
-      { text: "🗓️ أماكن الاجتماعات", callback_data: "meetings" },
-      { text: "🫂 أول مرة في اجتماع؟", callback_data: "first_meeting" }
+      {
+        text: "🗓️ أماكن الاجتماعات",
+        callback_data: "meetings"
+      },
+      {
+        text: "🫂 أول مرة في اجتماع؟",
+        callback_data: "first_meeting"
+      }
     ],
     [
-      { text: "🚨 محتاج مساعدة؟", callback_data: "help" },
-      { text: "📱 جروب واتساب", callback_data: "whatsapp" }
+      {
+        text: "🚨 محتاج مساعدة؟",
+        callback_data: "help"
+      },
+      {
+        text: "📱 جروب واتساب",
+        callback_data: "whatsapp"
+      }
     ],
     [
-      { text: "🌍 موقع الزمالة العالمي", callback_data: "world_na" }
+      {
+        text: "🌍 موقع الزمالة العالمي",
+        callback_data: "world_na"
+      }
     ],
     [
-      { text: "ℹ️ عن البوت", callback_data: "about" }
+      {
+        text: "ℹ️ عن البوت",
+        callback_data: "about"
+      }
     ]
   ];
 }
@@ -110,7 +112,10 @@ function mainMenu() {
 function backButton() {
   return [
     [
-      { text: "🔙 القائمة الرئيسية", callback_data: "main" }
+      {
+        text: "🔙 القائمة الرئيسية",
+        callback_data: "main"
+      }
     ]
   ];
 }
@@ -247,213 +252,211 @@ const CONTENT = {
 };
 
 // ===============================
-// Webhook
+// Vercel Webhook
 // ===============================
 
-export default {
-  async fetch(request) {
+export default async function handler(req, res) {
 
-    if (request.method !== "POST") {
-      return new Response("NA Bot is running ❤️", {
-        status: 200
-      });
+  // اختبار أن البوت شغال
+  if (req.method !== "POST") {
+    return res.status(200).send("NA Bot is running ❤️");
+  }
+
+  try {
+
+    const update = req.body;
+
+    if (!update) {
+      return res.status(200).send("OK");
     }
 
-    try {
+    // =========================
+    // رسالة جديدة
+    // =========================
 
-      const update = await request.json();
+    if (update.message) {
 
-      // =========================
-      // رسالة جديدة
-      // =========================
+      const chatId = update.message.chat.id;
+      const text = update.message.text || "";
 
-      if (update.message) {
+      if (text === "/start" || text === "/menu") {
 
-        const chatId = update.message.chat.id;
-        const text = update.message.text || "";
-
-        if (text === "/start" || text === "/menu") {
-
-          await sendMessage(
-            chatId,
-            `<b>🤖 أهلاً بك في بوت زمالة المدمنين المجهولين NA</b>
+        await sendMessage(
+          chatId,
+          `<b>🤖 أهلاً بك في بوت زمالة المدمنين المجهولين NA</b>
 
 ❤️ أنت هنا في مكان يمكنك فيه التعرف على التعافي والزمالة.
 
 اختار من القائمة اللي تحب تعرف عنه:`,
-            mainMenu()
-          );
+          mainMenu()
+        );
 
-        } else {
+      } else {
 
-          await sendMessage(
-            chatId,
-            `❤️ أهلاً بك.
+        await sendMessage(
+          chatId,
+          `❤️ أهلاً بك.
 
 استخدم الأزرار الموجودة في القائمة لاختيار الموضوع الذي تريد معرفته.`,
-            mainMenu()
-          );
-        }
+          mainMenu()
+        );
+      }
+    }
+
+    // =========================
+    // الضغط على زر
+    // =========================
+
+    if (update.callback_query) {
+
+      const query = update.callback_query;
+      const chatId = query.message.chat.id;
+      const data = query.data;
+
+      // إيقاف تحميل الزر
+      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          callback_query_id: query.id
+        })
+      });
+
+      // =========================
+      // القائمة الرئيسية
+      // =========================
+
+      if (data === "main") {
+
+        await sendMessage(
+          chatId,
+          `<b>🤖 القائمة الرئيسية</b>
+
+اختار القسم اللي تحب تدخله:`,
+          mainMenu()
+        );
+
+        return res.status(200).send("OK");
       }
 
       // =========================
-      // الضغط على زر
+      // أماكن الاجتماعات
       // =========================
 
-      if (update.callback_query) {
+      if (data === "meetings") {
 
-        const query = update.callback_query;
-        const chatId = query.message.chat.id;
-        const data = query.data;
-
-        // إيقاف تحميل الزر
-        await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            callback_query_id: query.id
-          })
-        });
-
-        // =========================
-        // القائمة الرئيسية
-        // =========================
-
-        if (data === "main") {
-
-          await sendMessage(
-            chatId,
-            `<b>🤖 القائمة الرئيسية</b>
-
-اختار القسم اللي تحب تدخله:`,
-            mainMenu()
-          );
-
-          return new Response("OK");
-        }
-
-        // =========================
-        // أماكن الاجتماعات
-        // =========================
-
-        if (data === "meetings") {
-
-          await sendMessage(
-            chatId,
-            `<b>🗓️ أماكن اجتماعات NA في مصر</b>
+        await sendMessage(
+          chatId,
+          `<b>🗓️ أماكن اجتماعات NA في مصر</b>
 
 اضغط على الزر بالأسفل للوصول إلى قائمة الاجتماعات ومعرفة أماكن ومواعيد الاجتماعات.
 
 🫂 نتمنى لك يومًا مليئًا بالتعافي.`,
+          [
             [
-              [
-                {
-                  text: "🗓️ أماكن ومواعيد الاجتماعات",
-                  url: MEETINGS_LINK
-                }
-              ],
-              [
-                {
-                  text: "🔙 القائمة الرئيسية",
-                  callback_data: "main"
-                }
-              ]
+              {
+                text: "🗓️ أماكن ومواعيد الاجتماعات",
+                url: MEETINGS_LINK
+              }
+            ],
+            [
+              {
+                text: "🔙 القائمة الرئيسية",
+                callback_data: "main"
+              }
             ]
-          );
+          ]
+        );
 
-          return new Response("OK");
-        }
+        return res.status(200).send("OK");
+      }
 
-        // =========================
-        // واتساب
-        // =========================
+      // =========================
+      // واتساب
+      // =========================
 
-        if (data === "whatsapp") {
+      if (data === "whatsapp") {
 
-          await sendMessage(
-            chatId,
-            `<b>📱 جروب واتساب</b>
+        await sendMessage(
+          chatId,
+          `<b>📱 جروب واتساب</b>
 
 يمكنك الانضمام إلى مجموعة التواصل من خلال الزر التالي:
 
 🫂 نحن نتشارك الخبرة والقوة والأمل معًا.`,
+          [
             [
-              [
-                {
-                  text: "📱 دخول جروب واتساب",
-                  url: WHATSAPP_GROUP
-                }
-              ],
-              [
-                {
-                  text: "🔙 القائمة الرئيسية",
-                  callback_data: "main"
-                }
-              ]
-            ]
-          );
-
-          return new Response("OK");
-        }
-
-        // =========================
-        // موقع الزمالة العالمي
-        // =========================
-
-        if (data === "world_na") {
-
-          await sendMessage(
-            chatId,
-            `<b>🌍 زمالة المدمنين المجهولين حول العالم</b>
-
-يمكنك زيارة الموقع العالمي لزمالة المدمنين المجهولين والتعرف أكثر على الزمالة وموارد التعافي حول العالم.`,
+              {
+                text: "📱 دخول جروب واتساب",
+                url: WHATSAPP_GROUP
+              }
+            ],
             [
-              [
-                {
-                  text: "🌍 زيارة موقع NA العالمي",
-                  url: NA_WORLD_LINK
-                }
-              ],
-              [
-                {
-                  text: "🔙 القائمة الرئيسية",
-                  callback_data: "main"
-                }
-              ]
+              {
+                text: "🔙 القائمة الرئيسية",
+                callback_data: "main"
+              }
             ]
-          );
+          ]
+        );
 
-          return new Response("OK");
-        }
-
-        // =========================
-        // باقي الأقسام
-        // =========================
-
-        if (CONTENT[data]) {
-
-          await sendMessage(
-            chatId,
-            CONTENT[data],
-            backButton()
-          );
-
-          return new Response("OK");
-        }
+        return res.status(200).send("OK");
       }
 
-      return new Response("OK");
+      // =========================
+      // موقع الزمالة العالمي
+      // =========================
 
-    } catch (error) {
+      if (data === "world_na") {
 
-      console.error(error);
+        await sendMessage(
+          chatId,
+          `<b>🌍 زمالة المدمنين المجهولين حول العالم</b>
 
-      return new Response("Error", {
-        status: 500
-      });
+يمكنك زيارة الموقع العالمي لزمالة المدمنين المجهولين والتعرف أكثر على الزمالة وموارد التعافي حول العالم.`,
+          [
+            [
+              {
+                text: "🌍 زيارة موقع NA العالمي",
+                url: NA_WORLD_LINK
+              }
+            ],
+            [
+              {
+                text: "🔙 القائمة الرئيسية",
+                callback_data: "main"
+              }
+            ]
+          ]
+        );
+
+        return res.status(200).send("OK");
+      }
+
+      // =========================
+      // باقي الأقسام
+      // =========================
+
+      if (CONTENT[data]) {
+
+        await sendMessage(
+          chatId,
+          CONTENT[data],
+          backButton()
+        );
+
+        return res.status(200).send("OK");
+      }
     }
+
+    return res.status(200).send("OK");
+
+  } catch (error) {
+
+    console.error("BOT ERROR:", error);
+
+    return res.status(500).send("Error");
   }
-};
- 
+}
