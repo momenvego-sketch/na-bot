@@ -257,8 +257,24 @@ const CONTENT = {
 
 export default async function handler(req, res) {
 
-  // اختبار أن البوت شغال
-  if (req.method !== "POST") {
+  // تسجيل Telegram Webhook
+  if (req.method === "GET") {
+    if (req.query?.setup === "1") {
+      const webhookUrl = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}${req.url.split("?")[0]}`;
+
+      const response = await fetch(
+        `${TELEGRAM_API}/setWebhook?url=${encodeURIComponent(webhookUrl)}`
+      );
+
+      const result = await response.json();
+
+      return res.status(result.ok ? 200 : 500).json({
+        ok: result.ok,
+        webhook: webhookUrl,
+        telegram: result
+      });
+    }
+
     return res.status(200).send("NA Bot is running ❤️");
   }
 
