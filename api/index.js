@@ -1,9 +1,20 @@
-const TOKEN = process.env.BOT_TOKEN;
-const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
+// ==========================================
+// NA Telegram Bot - Vercel
+// ==========================================
 
-// ===============================
+const TOKEN = process.env.BOT_TOKEN;
+
+const TELEGRAM_API = TOKEN
+  ? `https://api.telegram.org/bot${TOKEN}`
+  : null;
+
+// رابط الـ Vercel Function
+const WEBHOOK_URL =
+  "https://na-bot-git-main-my-telegram-bot.vercel.app/api";
+
+// ==========================================
 // الروابط
-// ===============================
+// ==========================================
 
 const WHATSAPP_GROUP =
   "https://chat.whatsapp.com/GjK95H7HePf3ERdT95QFgj";
@@ -14,14 +25,19 @@ const MEETINGS_LINK =
 const NA_WORLD_LINK =
   "https://m.na.org/";
 
-// ===============================
+// ==========================================
 // إرسال رسالة
-// ===============================
+// ==========================================
 
 async function sendMessage(chatId, text, keyboard = null) {
+  if (!TOKEN) {
+    console.error("BOT_TOKEN is missing");
+    return;
+  }
+
   const body = {
     chat_id: chatId,
-    text: text,
+    text,
     parse_mode: "HTML"
   };
 
@@ -40,13 +56,16 @@ async function sendMessage(chatId, text, keyboard = null) {
   });
 
   if (!response.ok) {
-    console.error("Telegram sendMessage error:", await response.text());
+    console.error(
+      "Telegram sendMessage error:",
+      await response.text()
+    );
   }
 }
 
-// ===============================
+// ==========================================
 // القائمة الرئيسية
-// ===============================
+// ==========================================
 
 function mainMenu() {
   return [
@@ -105,9 +124,9 @@ function mainMenu() {
   ];
 }
 
-// ===============================
+// ==========================================
 // زر الرجوع
-// ===============================
+// ==========================================
 
 function backButton() {
   return [
@@ -120,9 +139,9 @@ function backButton() {
   ];
 }
 
-// ===============================
-// محتوى الأقسام
-// ===============================
+// ==========================================
+// المحتوى
+// ==========================================
 
 const CONTENT = {
 
@@ -249,36 +268,97 @@ const CONTENT = {
 
 <b>أنت لست وحدك. 🫂❤️</b>
 `
+
 };
 
-// ===============================
-// Vercel Webhook
-// ===============================
+// ==========================================
+// دالة الإجابة على ضغط الأزرار
+// ==========================================
+
+async function answerCallback(callbackQuery) {
+  if (!TOKEN) {
+    console.error("BOT_TOKEN is missing");
+    return;
+  }
+
+  await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      callback_query_id: callbackQuery.id
+    })
+  });
+}
+
+// ==========================================
+// Vercel Function
+// ==========================================
 
 export default async function handler(req, res) {
 
-  // تسجيل Telegram Webhook
-  if (req.method === "GET") {
-    if (req.query?.setup === "1") {
-      const webhookUrl = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}${req.url.split("?")[0]}`;
+  try {
+
+    // --------------------------------------
+    // التأكد من وجود التوكن
+    // --------------------------------------
+
+    if (!TOKEN) {
+      console.error("BOT_TOKEN is not configured");
+
+      return res.status(500).json({
+        ok: false,
+        error: "BOT_TOKEN is missing"
+      });
+    }
+
+    // --------------------------------------
+    // GET
+    // --------------------------------------
+
+    if (req.method === "GET") {
+
+      // فتح الرابط عادي
+      if (req.query?.setup !== "1") {
+
+        return res.status(200).send(
+          "NA Bot is running ❤️"
+        );
+      }
+
+      // ------------------------------------
+      // تسجيل Webhook
+      // ------------------------------------
 
       const response = await fetch(
-        `${TELEGRAM_API}/setWebhook?url=${encodeURIComponent(webhookUrl)}`
+        `${TELEGRAM_API}/setWebhook?url=${encodeURIComponent(
+          WEBHOOK_URL
+        )}`
       );
 
       const result = await response.json();
 
+      console.log("Webhook setup:", result);
+
       return res.status(result.ok ? 200 : 500).json({
         ok: result.ok,
-        webhook: webhookUrl,
+        webhook: WEBHOOK_URL,
         telegram: result
       });
     }
 
-    return res.status(200).send("NA Bot is running ❤️");
-  }
+    // --------------------------------------
+    // السماح فقط بـ POST من Telegram
+    // --------------------------------------
 
-  try {
+    if (req.method !== "POST") {
+      return res.status(405).send("Method Not Allowed");
+    }
+
+    // --------------------------------------
+    // استقبال تحديث Telegram
+    // --------------------------------------
 
     const update = req.body;
 
@@ -286,15 +366,16 @@ export default async function handler(req, res) {
       return res.status(200).send("OK");
     }
 
-    // =========================
+    // ======================================
     // رسالة جديدة
-    // =========================
+    // ======================================
 
     if (update.message) {
 
       const chatId = update.message.chat.id;
       const text = update.message.text || "";
 
+      // /start
       if (text === "/start" || text === "/menu") {
 
         await sendMessage(
@@ -319,30 +400,29 @@ export default async function handler(req, res) {
       }
     }
 
-    // =========================
-    // الضغط على زر
-    // =========================
+    // ======================================
+    // ضغط زر
+    // ======================================
 
     if (update.callback_query) {
 
       const query = update.callback_query;
-      const chatId = query.message.chat.id;
-      const data = query.data;
 
-      // إيقاف تحميل الزر
-      await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          callback_query_id: query.id
-        })
-      });
+      await answerCallback(query);
 
-      // =========================
+      const chatId =
+        query.message?.chat?.id;
+
+      const data =
+        query.data;
+
+      if (!chatId) {
+        return res.status(200).send("OK");
+      }
+
+      // ------------------------------------
       // القائمة الرئيسية
-      // =========================
+      // ------------------------------------
 
       if (data === "main") {
 
@@ -357,9 +437,9 @@ export default async function handler(req, res) {
         return res.status(200).send("OK");
       }
 
-      // =========================
-      // أماكن الاجتماعات
-      // =========================
+      // ------------------------------------
+      // الاجتماعات
+      // ------------------------------------
 
       if (data === "meetings") {
 
@@ -389,9 +469,9 @@ export default async function handler(req, res) {
         return res.status(200).send("OK");
       }
 
-      // =========================
+      // ------------------------------------
       // واتساب
-      // =========================
+      // ------------------------------------
 
       if (data === "whatsapp") {
 
@@ -421,9 +501,9 @@ export default async function handler(req, res) {
         return res.status(200).send("OK");
       }
 
-      // =========================
-      // موقع الزمالة العالمي
-      // =========================
+      // ------------------------------------
+      // موقع NA العالمي
+      // ------------------------------------
 
       if (data === "world_na") {
 
@@ -451,9 +531,9 @@ export default async function handler(req, res) {
         return res.status(200).send("OK");
       }
 
-      // =========================
+      // ------------------------------------
       // باقي الأقسام
-      // =========================
+      // ------------------------------------
 
       if (CONTENT[data]) {
 
@@ -467,12 +547,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // --------------------------------------
+    // نهاية الطلب
+    // --------------------------------------
+
     return res.status(200).send("OK");
 
   } catch (error) {
 
     console.error("BOT ERROR:", error);
 
-    return res.status(500).send("Error");
+    return res.status(500).json({
+      ok: false,
+      error: "Internal Server Error"
+    });
   }
-}
+        }
