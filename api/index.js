@@ -29,18 +29,19 @@ const NA_WORLD_LINK =
 // أرقام خطوط المساعدة
 // ==========================================
 
-const CAIRO_HELP = "+201006979198";
+const CAIRO_HELP = "01006979198";
 const WHATSAPP_HELP = "https://wa.me/201060933888";
-const ALEX_HELP = "+201503884411";
+const ALEX_HELP = "01503884411";
 
 // ==========================================
 // إرسال رسالة
 // ==========================================
 
 async function sendMessage(chatId, text, keyboard = null) {
+
   if (!TOKEN) {
     console.error("BOT_TOKEN is missing");
-    return;
+    return false;
   }
 
   const body = {
@@ -55,19 +56,40 @@ async function sendMessage(chatId, text, keyboard = null) {
     };
   }
 
-  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
+  try {
 
-  if (!response.ok) {
-    console.error(
-      "Telegram sendMessage error:",
-      await response.text()
+    const response = await fetch(
+      `${TELEGRAM_API}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      }
     );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      console.error(
+        "Telegram sendMessage error:",
+        result
+      );
+
+      return false;
+    }
+
+    return true;
+
+  } catch (error) {
+
+    console.error(
+      "sendMessage ERROR:",
+      error
+    );
+
+    return false;
   }
 }
 
@@ -76,7 +98,9 @@ async function sendMessage(chatId, text, keyboard = null) {
 // ==========================================
 
 function mainMenu() {
+
   return [
+
     [
       {
         text: "🧩 هل أنا مدمن؟",
@@ -87,6 +111,7 @@ function mainMenu() {
         callback_data: "what_is_na"
       }
     ],
+
     [
       {
         text: "🙏 لماذا نحن هنا؟",
@@ -97,6 +122,7 @@ function mainMenu() {
         callback_data: "program"
       }
     ],
+
     [
       {
         text: "🗓️ أماكن الاجتماعات",
@@ -107,6 +133,7 @@ function mainMenu() {
         callback_data: "first_meeting"
       }
     ],
+
     [
       {
         text: "🚨 محتاج مساعدة؟",
@@ -117,6 +144,7 @@ function mainMenu() {
         callback_data: "help_lines"
       }
     ],
+
     [
       {
         text: "📱 جروب واتساب",
@@ -127,12 +155,14 @@ function mainMenu() {
         callback_data: "world_na"
       }
     ],
+
     [
       {
         text: "ℹ️ عن البوت",
         callback_data: "about"
       }
     ]
+
   ];
 }
 
@@ -141,6 +171,7 @@ function mainMenu() {
 // ==========================================
 
 function backButton() {
+
   return [
     [
       {
@@ -149,6 +180,7 @@ function backButton() {
       }
     ]
   ];
+
 }
 
 // ==========================================
@@ -284,24 +316,39 @@ const CONTENT = {
 };
 
 // ==========================================
-// دالة الإجابة على ضغط الأزرار
+// الرد على ضغط الأزرار
 // ==========================================
 
 async function answerCallback(callbackQuery) {
+
   if (!TOKEN) {
     console.error("BOT_TOKEN is missing");
     return;
   }
 
-  await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      callback_query_id: callbackQuery.id
-    })
-  });
+  try {
+
+    await fetch(
+      `${TELEGRAM_API}/answerCallbackQuery`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          callback_query_id: callbackQuery.id
+        })
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "answerCallback ERROR:",
+      error
+    );
+
+  }
 }
 
 // ==========================================
@@ -317,12 +364,16 @@ export default async function handler(req, res) {
     // --------------------------------------
 
     if (!TOKEN) {
-      console.error("BOT_TOKEN is not configured");
+
+      console.error(
+        "BOT_TOKEN is not configured"
+      );
 
       return res.status(500).json({
         ok: false,
         error: "BOT_TOKEN is missing"
       });
+
     }
 
     // --------------------------------------
@@ -331,12 +382,12 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
 
-      // فتح الرابط عادي
       if (req.query?.setup !== "1") {
 
         return res.status(200).send(
           "NA Bot is running ❤️"
         );
+
       }
 
       // ------------------------------------
@@ -351,21 +402,31 @@ export default async function handler(req, res) {
 
       const result = await response.json();
 
-      console.log("Webhook setup:", result);
+      console.log(
+        "Webhook setup:",
+        result
+      );
 
-      return res.status(result.ok ? 200 : 500).json({
+      return res.status(
+        result.ok ? 200 : 500
+      ).json({
         ok: result.ok,
         webhook: WEBHOOK_URL,
         telegram: result
       });
+
     }
 
     // --------------------------------------
-    // السماح فقط بـ POST من Telegram
+    // POST فقط
     // --------------------------------------
 
     if (req.method !== "POST") {
-      return res.status(405).send("Method Not Allowed");
+
+      return res
+        .status(405)
+        .send("Method Not Allowed");
+
     }
 
     // --------------------------------------
@@ -375,7 +436,11 @@ export default async function handler(req, res) {
     const update = req.body;
 
     if (!update) {
-      return res.status(200).send("OK");
+
+      return res
+        .status(200)
+        .send("OK");
+
     }
 
     // ======================================
@@ -384,32 +449,48 @@ export default async function handler(req, res) {
 
     if (update.message) {
 
-      const chatId = update.message.chat.id;
-      const text = update.message.text || "";
+      const chatId =
+        update.message.chat.id;
+
+      const text =
+        update.message.text || "";
 
       // /start
-      if (text === "/start" || text === "/menu") {
+      if (
+        text === "/start" ||
+        text === "/menu"
+      ) {
 
         await sendMessage(
+
           chatId,
+
           `<b>🤖 أهلاً بك في بوت زمالة المدمنين المجهولين NA</b>
 
 ❤️ أنت هنا في مكان يمكنك فيه التعرف على التعافي والزمالة.
 
 اختار من القائمة اللي تحب تعرف عنه:`,
+
           mainMenu()
+
         );
 
       } else {
 
         await sendMessage(
+
           chatId,
+
           `❤️ أهلاً بك.
 
 استخدم الأزرار الموجودة في القائمة لاختيار الموضوع الذي تريد معرفته.`,
+
           mainMenu()
+
         );
+
       }
+
     }
 
     // ======================================
@@ -418,7 +499,8 @@ export default async function handler(req, res) {
 
     if (update.callback_query) {
 
-      const query = update.callback_query;
+      const query =
+        update.callback_query;
 
       await answerCallback(query);
 
@@ -429,7 +511,11 @@ export default async function handler(req, res) {
         query.data;
 
       if (!chatId) {
-        return res.status(200).send("OK");
+
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -439,14 +525,21 @@ export default async function handler(req, res) {
       if (data === "main") {
 
         await sendMessage(
+
           chatId,
+
           `<b>🤖 القائمة الرئيسية</b>
 
 اختار القسم اللي تحب تدخله:`,
+
           mainMenu()
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -456,7 +549,9 @@ export default async function handler(req, res) {
       if (data === "help_lines") {
 
         await sendMessage(
+
           chatId,
+
           `<b>📞 خطوط المساعدة</b>
 
 لو محتاج تتواصل مع أحد أعضاء زمالة المدمنين المجهولين، يمكنك استخدام الأرقام التالية:
@@ -465,8 +560,8 @@ export default async function handler(req, res) {
 📞 01006979198
 🕐 من 10 صباحًا حتى 12 منتصف الليل
 
-<b>📱 واتساب</b>
-01060933888
+<b>📱 واتساب المساعدة</b>
+📱 01060933888
 
 <b>📍 الإسكندرية</b>
 📞 01503884411
@@ -475,25 +570,15 @@ export default async function handler(req, res) {
 🫂 يتواجد أعضاء متعافون للرد عليك ومساعدتك بسرية تامة.
 
 <b>أنت لست وحدك. ❤️</b>`,
+
           [
-            [
-              {
-                text: "📞 اتصال بالقاهرة والمحافظات",
-                url: `tel:${CAIRO_HELP}`
-              }
-            ],
             [
               {
                 text: "📱 واتساب المساعدة",
                 url: WHATSAPP_HELP
               }
             ],
-            [
-              {
-                text: "📞 اتصال بالإسكندرية",
-                url: `tel:${ALEX_HELP}`
-              }
-            ],
+
             [
               {
                 text: "🔙 القائمة الرئيسية",
@@ -501,9 +586,13 @@ export default async function handler(req, res) {
               }
             ]
           ]
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -513,29 +602,39 @@ export default async function handler(req, res) {
       if (data === "meetings") {
 
         await sendMessage(
+
           chatId,
+
           `<b>🗓️ أماكن اجتماعات NA في مصر</b>
 
 اضغط على الزر بالأسفل للوصول إلى قائمة الاجتماعات ومعرفة أماكن ومواعيد الاجتماعات.
 
 🫂 نتمنى لك يومًا مليئًا بالتعافي.`,
+
           [
+
             [
               {
                 text: "🗓️ أماكن ومواعيد الاجتماعات",
                 url: MEETINGS_LINK
               }
             ],
+
             [
               {
                 text: "🔙 القائمة الرئيسية",
                 callback_data: "main"
               }
             ]
+
           ]
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -545,29 +644,39 @@ export default async function handler(req, res) {
       if (data === "whatsapp") {
 
         await sendMessage(
+
           chatId,
+
           `<b>📱 جروب واتساب</b>
 
 يمكنك الانضمام إلى مجموعة التواصل من خلال الزر التالي:
 
 🫂 نحن نتشارك الخبرة والقوة والأمل معًا.`,
+
           [
+
             [
               {
                 text: "📱 دخول جروب واتساب",
                 url: WHATSAPP_GROUP
               }
             ],
+
             [
               {
                 text: "🔙 القائمة الرئيسية",
                 callback_data: "main"
               }
             ]
+
           ]
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -577,27 +686,37 @@ export default async function handler(req, res) {
       if (data === "world_na") {
 
         await sendMessage(
+
           chatId,
+
           `<b>🌍 زمالة المدمنين المجهولين حول العالم</b>
 
 يمكنك زيارة الموقع العالمي لزمالة المدمنين المجهولين والتعرف أكثر على الزمالة وموارد التعافي حول العالم.`,
+
           [
+
             [
               {
                 text: "🌍 زيارة موقع NA العالمي",
                 url: NA_WORLD_LINK
               }
             ],
+
             [
               {
                 text: "🔙 القائمة الرئيسية",
                 callback_data: "main"
               }
             ]
+
           ]
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
 
       // ------------------------------------
@@ -607,28 +726,43 @@ export default async function handler(req, res) {
       if (CONTENT[data]) {
 
         await sendMessage(
+
           chatId,
+
           CONTENT[data],
+
           backButton()
+
         );
 
-        return res.status(200).send("OK");
+        return res
+          .status(200)
+          .send("OK");
+
       }
+
     }
 
     // --------------------------------------
     // نهاية الطلب
     // --------------------------------------
 
-    return res.status(200).send("OK");
+    return res
+      .status(200)
+      .send("OK");
 
   } catch (error) {
 
-    console.error("BOT ERROR:", error);
+    console.error(
+      "BOT ERROR:",
+      error
+    );
 
     return res.status(500).json({
       ok: false,
       error: "Internal Server Error"
     });
+
   }
+
 }
